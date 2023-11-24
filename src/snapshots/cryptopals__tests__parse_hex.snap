@@ -1,0 +1,9 @@
+---
+source: src/lib.rs
+expression: "format!(\"{:?}\", res)"
+---
+Ok([
+    0x49,
+    0x27,
+    0x6d,
+])
