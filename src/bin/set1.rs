@@ -1,46 +1,30 @@
-use std::collections::BTreeMap;
+use std::io::BufRead;
 
-use cryptopals::hex::ToHex;
-use cryptopals::xor::fixed_xor_byte;
-use itertools::Itertools;
+use cryptopals::challenges::set1;
+use cryptopals::hex::Hex;
 
-static ENGLISH_LETTERS: &[char] = &['e', 't', 'a', 'o', 'i', 'n', 's', 'r', 'h', 'l'];
+fn challenge_3() {
+    let challenge3_str = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
+    let res = set1::decode_hex_str_to_english(challenge3_str.parse::<Hex>().unwrap()).unwrap();
+    assert_eq!(&res[0], "Cooking MC's like a pound of bacon");
+}
 
-fn challenge_3() -> Vec<String> {
-    let decipher_str = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"
-        .to_hex()
-        .unwrap();
-    let char_range = 0..=255u8;
+fn challenge_4() {
+    let flatten = include_bytes!("../../assets/set1-challenge4.txt")
+        .lines()
+        .flatten();
 
-    let res = char_range
-        .into_iter()
-        .filter_map(|char| {
-            let decipher_xor = fixed_xor_byte(decipher_str.as_ref(), char).unwrap();
-            let mut set = BTreeMap::new();
+    let a: Vec<_> = flatten
+        .flat_map(|new_str| new_str.parse::<Hex>())
+        .flat_map(|hex_str| set1::decode_hex_str_to_english(hex_str))
+        .filter(|a| !a.is_empty())
+        .collect();
 
-            let Ok(utf_str) = std::str::from_utf8(decipher_xor.as_ref()) else {
-                return None;
-            };
-
-            utf_str.chars().for_each(|char| {
-                if ENGLISH_LETTERS.contains(&char) {
-                    set.entry(char).and_modify(|count| *count += 1).or_insert(1);
-                }
-            });
-            Some((char, set))
-        })
-        .map(|(xor_char, set)| (xor_char, set.into_values().sum::<i32>()))
-        .collect::<BTreeMap<_, _>>();
-
-    res.into_iter()
-        .sorted_by(|prev, next| Ord::cmp(&next.1, &prev.1))
-        .take(5)
-        .flat_map(|(xor_char, _)| fixed_xor_byte(decipher_str.as_ref(), xor_char))
-        .flat_map(String::from_utf8)
-        .collect()
+    let res = &a[3][0];
+    assert_eq!(res, "Now that the party is jumping\n");
 }
 
 pub fn main() {
-    let res = &challenge_3()[1];
-    assert_eq!(&*res, "Cooking MC's like a pound of bacon");
+    challenge_3();
+    challenge_4();
 }
