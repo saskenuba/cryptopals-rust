@@ -1,0 +1,5 @@
+---
+source: src/hex.rs
+expression: "Hex::from_str(source).unwrap().into_b64_string()"
+---
+YWJj
