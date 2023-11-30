@@ -86,10 +86,9 @@ impl<'a> Hex<'a> {
                 .chars()
                 .position(|b64_char| encoded_char == b64_char)
                 .map(|a| a.as_u8())
-                .ok_or_else(|| anyhow!("Invalid B64, byte: {}", encoded_char.as_u8()))?;
+                .ok_or_else(|| anyhow!("Invalid B64, byte: {}, char: {}", encoded_char.as_u8(), encoded_char))?;
 
-            dbg!(&b64_idx);
-            bitbuffer.extend_from_bitslice(dbg!(&b64_idx.view_bits::<Msb0>()[2..]));
+            bitbuffer.extend_from_bitslice(&b64_idx.view_bits::<Msb0>()[2..]);
         }
         let final_buffer = bitbuffer
             .chunks(8)
