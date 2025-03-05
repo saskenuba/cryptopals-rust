@@ -14,6 +14,12 @@ use crate::{AnyResult, B64};
 #[derive(Ord, PartialOrd, Eq, PartialEq)]
 pub struct Hex<'a>(Cow<'a, [u8]>);
 
+impl<'a> From<&'a [u8]> for Hex<'a> {
+    fn from(value: &'a [u8]) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
 impl<'a> FromStr for Hex<'a> {
     type Err = anyhow::Error;
 
@@ -77,7 +83,7 @@ impl<'a> Hex<'a> {
         let mut bitbuffer = BitVec::<u8, Msb0>::new();
 
         let encoded_str = encoded_str
-            .trim_end_matches('=')
+            .trim_end_matches(|c| !B64.contains(c))
             .chars()
             .filter(|c| !c.is_whitespace());
 

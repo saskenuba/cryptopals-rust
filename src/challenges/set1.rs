@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
+use std::iter::{IntoIterator, Iterator};
+use std::ops::RangeInclusive;
 
 use anyhow::ensure;
+use bitvec::macros::internal::funty::Fundamental;
 use bitvec::prelude::*;
 use itertools::Itertools;
 
-use crate::hex::Hex;
 use crate::xor::XorExt;
-use crate::AnyResult;
-
-static ENGLISH_LETTERS: &[char] = &['e', 't', 'a', 'o', 'i', 'n', 's', 'h', 'r', 'd'];
+use crate::{dictionary, AnyResult};
 
 /// Calculates the Hamming distance between two numbers, i.e, calculates the amount of differing bits between two
 /// strings.
@@ -29,37 +29,39 @@ pub fn hamming_distance_bit(s1: impl AsRef<[u8]>, s2: impl AsRef<[u8]>) -> AnyRe
         .count() as i32)
 }
 
-/// Returns a Vec<String> containing...
-pub fn decode_hex_str_to_english(xor_encoded_str: Hex) -> AnyResult<Vec<String>> {
-    let char_range = 0..=255u8;
+/// Bruteforces a `xor_encoded_str` by trying chars from 0 to 255, and returns the top 5 on the
+/// format of:
+/// (probable char, decoded_string with probable char).
+pub fn bruteforce_hex_by_fixed_xor(
+    xor_encoded_str: impl AsRef<[u8]>,
+    range: Option<RangeInclusive<u8>>,
+) -> AnyResult<Vec<(u8, String)>> {
+    let char_range = range.unwrap_or(u8::MIN..=u8::MAX);
 
     let res = char_range
         .into_iter()
-        .filter_map(|char| {
-            let decipher_xor = xor_encoded_str.as_ref().fixed_xor_byte(char);
-            let mut set = BTreeMap::new();
-
-            let Ok(utf_str) = std::str::from_utf8(decipher_xor.as_ref()) else {
-                return None;
-            };
-
-            utf_str.chars().for_each(|char| {
-                if ENGLISH_LETTERS.contains(&char) {
-                    set.entry(char).and_modify(|count| *count += 1).or_insert(1);
-                }
-            });
-            Some((char, set))
-        })
-        .map(|(xor_char, set)| (xor_char, set.into_values().sum::<i32>()))
+        .filter_map(|char| xor_by_char_and_score(&xor_encoded_str, char).map(|score| (char, score)))
         .collect::<BTreeMap<_, _>>();
 
     Ok(res
         .into_iter()
         .sorted_by(|prev, next| Ord::cmp(&next.1, &prev.1))
         .take(5)
-        .map(|(xor_char, _)| xor_encoded_str.as_ref().fixed_xor_byte(xor_char))
-        .flat_map(String::from_utf8)
+        .inspect(|(char, score)| println!("char: {:?} score: {}", char.as_char(), score))
+        .map(|(xor_char, _)| (xor_char, xor_encoded_str.as_ref().fixed_xor_byte(xor_char)))
+        .map(|(xor_char, bytes)| (xor_char, String::from_utf8(bytes).unwrap()))
         .collect())
+}
+
+fn xor_by_char_and_score(xor_encoded_str: impl AsRef<[u8]>, char: u8) -> Option<i32> {
+    let decipher_xor = xor_encoded_str.as_ref().fixed_xor_byte(char);
+
+    let Ok(utf_str) = std::str::from_utf8(decipher_xor.as_ref()) else {
+        return None;
+    };
+
+    let score = dictionary::score_english_letters_phrase(utf_str);
+    Some(score)
 }
 
 #[cfg(test)]
